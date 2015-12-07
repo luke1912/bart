@@ -2,3 +2,4 @@ C:\Users\Administrator\Documents\Visual Studio 2010\Projects\Bart\Bart\bin\Debug
 C:\Users\Administrator\Documents\Visual Studio 2010\Projects\Bart\Bart\bin\Debug\Bart.pdb
 C:\Users\Administrator\Documents\Visual Studio 2010\Projects\Bart\Bart\obj\x86\Debug\Bart.exe
 C:\Users\Administrator\Documents\Visual Studio 2010\Projects\Bart\Bart\obj\x86\Debug\Bart.pdb
+C:\Users\Administrator\Documents\Visual Studio 2010\Projects\Bart\Bart\obj\x86\Debug\Bart.csprojResolveAssemblyReference.cache

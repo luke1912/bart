@@ -16,18 +16,35 @@ namespace Bart
 {
     class Program
     {
-        public static string GlobalFilePath = "@\"C:\\userInfo.txt\"";
+        //public static string GlobalFilePath = "@\"C:\\userInfo.txt\"";
 
         static void Main(string[] args)
         {
-            //clear file before running export
+            //Step 1. clear file before running export
             System.IO.File.WriteAllText("C:\\userInfo.txt", string.Empty);
 
-            //Execute export from AD to file
+            //Step 2. Execute export from AD to file
             getGroupMembers(); 
 
-            //SQL part
+            //Step 3. SQL part. Insert values from files to SQL
             insertUsersToSQL();
+
+            //Step 4.clear file before running export for WebappOperators Group
+            System.IO.File.WriteAllText("C:\\WebAppOperatorsUsers.txt", string.Empty);
+
+            //Step 5. Read contents of WebAppOperators group
+            //         Read each member properties
+            //          Save them to text file
+            getWebAppOperatorsMembers();
+
+            //Step 6. Read WebAppOperatorsUsers.txt contents and insert infromation to SQL if not already there
+            insertWAOPUsersToSQL();
+
+            Console.WriteLine("*********************** ALL DONE");
+            Console.ReadLine();
+
+
+
 
 
         
@@ -75,6 +92,8 @@ namespace Bart
         }
 
 
+               
+
         /********************************************************************
          * getUserProperties function reads users information passed by 
          * getGroupMembers function and saves their details to a file 
@@ -92,7 +111,7 @@ namespace Bart
             string sAMAccountName = unamep;
             string mail = usr.EmailAddress;
             string telephoneNumber = usr.VoiceTelephoneNumber;
-            string physicalDeliveryOfficeName = ""; // requires DirectoryEntry object
+            //string physicalDeliveryOfficeName = ""; // requires DirectoryEntry object
 
             string fullUserInfo = cn + "," + givenName + "," + sn + "," + sAMAccountName + "," + mail + "," + telephoneNumber;
             Console.WriteLine (fullUserInfo);
@@ -118,8 +137,6 @@ namespace Bart
             Console.WriteLine("User " + uname + " has been saved to file");
 
         }
-
-
 
         /*
          * Open file
@@ -165,7 +182,7 @@ namespace Bart
             catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
-                Console.ReadLine();
+                //Console.ReadLine();
             }
 
             //read every single line of the file
@@ -181,7 +198,7 @@ namespace Bart
                 System.Data.SqlClient.SqlCommand scmd = new System.Data.SqlClient.SqlCommand(sqlQueryforCheck, sqlconn1);
 
                 //SQL that inserts non existent user informaction from file to SQL DB (Parametrised)
-                sqlQueryForInsert = "INSERT INTO users (FNAME,LNAME,USERNAME,EMAIL,PHONE) values(@fname,@lname,@username,@email,@phone)";
+                sqlQueryForInsert = "INSERT INTO users (FNAME,LNAME,USERNAME,EMAIL,PHONE,USER_TYPE) values(@fname,@lname,@username,@email,@phone,@user_type)";
                 System.Data.SqlClient.SqlCommand sqlInsert = new System.Data.SqlClient.SqlCommand(sqlQueryForInsert, sqlconn2);
                
                // Create parameters
@@ -190,6 +207,7 @@ namespace Bart
                sqlInsert.Parameters.Add("@username", System.Data.SqlDbType.Text);
                sqlInsert.Parameters.Add("@email", System.Data.SqlDbType.Text);
                sqlInsert.Parameters.Add("@phone", System.Data.SqlDbType.Text);
+               sqlInsert.Parameters.Add("@user_type", System.Data.SqlDbType.TinyInt);
                //sqlInsert.Parameters.Add("@department", System.Data.SqlDbType.Text);
 
                //Assign parameters from from array elements
@@ -198,6 +216,7 @@ namespace Bart
                sqlInsert.Parameters["@username"].Value = lineArr[3].ToString();
                sqlInsert.Parameters["@email"].Value = lineArr[4].ToString();
                sqlInsert.Parameters["@phone"].Value = lineArr[5].ToString();
+               sqlInsert.Parameters["@user_type"].Value = 0;
 
 
                System.Data.SqlClient.SqlDataReader bhread = scmd.ExecuteReader();
@@ -224,9 +243,177 @@ namespace Bart
            sqlconn1.Close(); //connection stays open outside while processing
            sqlconn2.Close();
            file.Close();
+           Console.WriteLine("Connection Closed");
            Console.ReadLine();
 
         }
+
+        /*************************************** MODIFIED CODE FROM ABOVE FOR WEB APP OPERATORS *****************************************/
+
+
+
+        /*This finction: Finds members of the webappoperators group and send their username to getWAOPUserProperties function to get more details */
+        public static void getWebAppOperatorsMembers()
+        {
+            Console.WriteLine("Reading WebAppOperators group Members");
+
+            PrincipalContext ctx = new PrincipalContext(ContextType.Domain, "project.local");
+            GroupPrincipal grp = GroupPrincipal.FindByIdentity(ctx, IdentityType.SamAccountName, "WebAppOperators");
+
+            if (grp != null)
+            {
+                //loop through members of the group
+                foreach (Principal p in grp.GetMembers())
+                {
+                    string uname = String.Format("{0}", p.SamAccountName);
+                    Console.WriteLine(uname);
+                    getWAOPUserProperties(uname); //pass each member username function that gets more information
+                }
+
+                grp.Dispose();
+                ctx.Dispose();
+
+            }
+            else
+            {
+                Console.WriteLine("WebAppOperators Windows Group Not Found");
+                Console.ReadLine();
+            }
+        }
+
+
+        /* This function receives username from getWebAppOperatorsMembers and reads more details
+         * all details are concatenated into single line string and pased to savetofile function
+         * 
+         */
+        public static void getWAOPUserProperties(string unamep)
+        {
+
+            PrincipalContext cty = new PrincipalContext(ContextType.Domain, "project.local");
+            UserPrincipal usr = UserPrincipal.FindByIdentity(cty, unamep);
+
+            string cn = usr.Name;
+            string givenName = usr.GivenName;
+            string sn = usr.Surname;
+            string sAMAccountName = unamep;
+            string mail = usr.EmailAddress;
+            string telephoneNumber = usr.VoiceTelephoneNumber;
+            //string physicalDeliveryOfficeName = ""; // requires DirectoryEntry object
+
+            string fullUserInfo = cn + "," + givenName + "," + sn + "," + sAMAccountName + "," + mail + "," + telephoneNumber;
+            Console.WriteLine(fullUserInfo);
+            saveWAOPUsersToFile(fullUserInfo, cn);
+
+        }
+
+        /*This function receives full user info and username from getWAOPUserProperties
+         * and saves all information in the text file
+         */
+        public static void saveWAOPUsersToFile(string userInfo, string uname) //uname only used for display purposes
+        {
+
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter("C:\\WebAppOperatorsUsers.txt", true))
+            {
+                file.WriteLine(userInfo);
+            }
+
+            //System.IO.File.WriteAllText(@"C:\userInfo.txt", userInfo);
+            Console.WriteLine("User " + uname + " has been saved to file");
+
+        }
+
+        /* SQL reads file and inserts values to SQL users table. Check if they exisit and if not commits insert */
+        public static void insertWAOPUsersToSQL()
+        {
+            string line;
+            string[] lineArr = new string[6];
+
+            //SQL Connection Create            
+            System.Data.SqlClient.SqlConnection sqlconn1 = new System.Data.SqlClient.SqlConnection("Server=lk-dit-ad.project.local;database=helpdesk;Trusted_Connection=true");
+            System.Data.SqlClient.SqlConnection sqlconn2 = new System.Data.SqlClient.SqlConnection("Server=lk-dit-ad.project.local;database=helpdesk;Trusted_Connection=true");
+
+            string sqlQueryforCheck = "";
+            string sqlQueryForInsert = "";
+
+            // Read the file and display it line by line.
+            System.IO.StreamReader file = new System.IO.StreamReader("C:\\WebAppOperatorsUsers.txt");
+
+            try
+            {
+                sqlconn1.Open();
+                sqlconn2.Open();
+                Console.WriteLine("Connected to SQL");
+            }
+
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+
+            //read every single line of the file
+            while ((line = file.ReadLine()) != null)
+            {
+
+                line = line.ToString();
+                Console.WriteLine("**** " + line);
+                lineArr = line.Split(','); //Split each line by coma
+
+                //pass username from file into SQL query to be checked for existance in helpdesk DB
+                sqlQueryforCheck = "SELECT ID from users WHERE username =" + "'" + lineArr[3].ToString() + "'";
+                System.Data.SqlClient.SqlCommand scmd = new System.Data.SqlClient.SqlCommand(sqlQueryforCheck, sqlconn1);
+
+                //SQL that inserts non existent user informaction from file to SQL DB (Parametrised)
+                sqlQueryForInsert = "INSERT INTO users (FNAME,LNAME,USERNAME,EMAIL,PHONE,USER_TYPE) values(@fname,@lname,@username,@email,@phone,@user_type)";
+                System.Data.SqlClient.SqlCommand sqlInsert = new System.Data.SqlClient.SqlCommand(sqlQueryForInsert, sqlconn2);
+
+                // Create parameters
+                sqlInsert.Parameters.Add("@fname", System.Data.SqlDbType.Text);
+                sqlInsert.Parameters.Add("@lname", System.Data.SqlDbType.Text);
+                sqlInsert.Parameters.Add("@username", System.Data.SqlDbType.Text);
+                sqlInsert.Parameters.Add("@email", System.Data.SqlDbType.Text);
+                sqlInsert.Parameters.Add("@phone", System.Data.SqlDbType.Text);
+                sqlInsert.Parameters.Add("@user_type", System.Data.SqlDbType.TinyInt);
+                //sqlInsert.Parameters.Add("@department", System.Data.SqlDbType.Text);
+
+                //Assign parameters from from array elements
+                sqlInsert.Parameters["@fname"].Value = lineArr[1].ToString();
+                sqlInsert.Parameters["@lname"].Value = lineArr[2].ToString();
+                sqlInsert.Parameters["@username"].Value = lineArr[3].ToString();
+                sqlInsert.Parameters["@email"].Value = lineArr[4].ToString();
+                sqlInsert.Parameters["@phone"].Value = lineArr[5].ToString();
+                sqlInsert.Parameters["@user_type"].Value = 1;
+
+
+                System.Data.SqlClient.SqlDataReader bhread = scmd.ExecuteReader();
+
+                /* 
+                if bhrad has rows, that means username is already in the database so skip it and move on the the next line in the file
+                for another username to be checked against database
+                if found, insert it to database
+                */
+                if (bhread.HasRows)
+                {
+                    Console.WriteLine("User alrady DB: " + lineArr[3].ToString());
+                }
+                else
+                {
+                    sqlInsert.ExecuteNonQuery();
+                    Console.WriteLine("Insert Success");
+                }
+
+                bhread.Close();
+
+            }
+            file.Close();
+            sqlconn1.Close(); //connection stays open outside while processing
+            sqlconn2.Close();
+            file.Close();
+            Console.WriteLine("Connection Closed");
+            Console.ReadLine();
+
+        }
+
+
     }
 }
 
