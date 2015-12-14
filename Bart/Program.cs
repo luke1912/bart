@@ -60,26 +60,16 @@ namespace Bart
         {
             Console.WriteLine("Hello, this script will now start exporting. Please press a key to continue");
             Console.ReadKey();
-
-            // ################## PrincipalContext method ########################
-            //http://stackoverflow.com/questions/4901749/get-user-names-in-an-active-directory-group-via-net
-            //http://blogs.technet.com/b/brad_rutkowski/archive/2008/04/15/c-getting-members-of-a-group-the-easy-way-with-net-3-5-discussion-groups-nested-recursive-security-groups-etc.aspx
-
-
-
             PrincipalContext ctx = new PrincipalContext(ContextType.Domain, "project.local");
             GroupPrincipal grp = GroupPrincipal.FindByIdentity(ctx, IdentityType.SamAccountName, "WebAppUsers");
-
             if (grp != null)
             {
-                //string email = grp.SamAccountName
                 foreach (Principal p in grp.GetMembers())
                 {
                     string uname = String.Format("{0}", p.SamAccountName);
                     Console.WriteLine("The user name found is: " + uname);
                     getUserProperties(uname);
                 }
-
                 grp.Dispose();
                 ctx.Dispose();
                 Console.ReadLine();
@@ -90,10 +80,6 @@ namespace Bart
                 Console.ReadLine();
             }
         }
-
-
-               
-
         /********************************************************************
          * getUserProperties function reads users information passed by 
          * getGroupMembers function and saves their details to a file 
@@ -101,10 +87,8 @@ namespace Bart
          ********************************************************************/
         public static void getUserProperties(string unamep)
         {
-           
             PrincipalContext cty = new PrincipalContext(ContextType.Domain, "project.local");
             UserPrincipal usr = UserPrincipal.FindByIdentity(cty, unamep);
-            
             string cn = usr.Name;
             string givenName = usr.GivenName ;
             string sn = usr.Surname;
@@ -116,10 +100,7 @@ namespace Bart
             string fullUserInfo = cn + "," + givenName + "," + sn + "," + sAMAccountName + "," + mail + "," + telephoneNumber;
             Console.WriteLine (fullUserInfo);
             saveADUsersToFile(fullUserInfo, cn);    
-
         }
-
-
 
         /********************************************************************
          * saveADUsersToFile receives full user information from getUserProperties
@@ -147,28 +128,18 @@ namespace Bart
          * Run SQL Query to:
          *  -check if element[2] exist. IF exists read next line
          *  -if does not exisit, do insert
-         * 
-         * 
-         * 
          * Close SQL connection
          */
         public static void insertUsersToSQL()
         { 
-
-            //https://msdn.microsoft.com/en-us/library/aa287535(v=vs.71).aspx
-            //Open file from C:\
-      
             string line;
             string [] lineArr = new string[6];
-            
 
             //SQL Connection Create            
             System.Data.SqlClient.SqlConnection sqlconn1 = new System.Data.SqlClient.SqlConnection("Server=lk-dit-ad.project.local;database=helpdesk;Trusted_Connection=true");
             System.Data.SqlClient.SqlConnection sqlconn2 = new System.Data.SqlClient.SqlConnection("Server=lk-dit-ad.project.local;database=helpdesk;Trusted_Connection=true");
-            
             string sqlQueryforCheck = "";
             string sqlQueryForInsert = "";
-
             // Read the file and display it line by line.
             System.IO.StreamReader file = new System.IO.StreamReader("C:\\userInfo.txt");
 
@@ -182,13 +153,11 @@ namespace Bart
             catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
-                //Console.ReadLine();
             }
 
             //read every single line of the file
            while ((line = file.ReadLine()) != null)
             {
-                
                 line = line.ToString();
                 Console.WriteLine("**** " + line);
                 lineArr = line.Split(','); //Split each line by coma
@@ -218,7 +187,6 @@ namespace Bart
                sqlInsert.Parameters["@phone"].Value = lineArr[5].ToString();
                sqlInsert.Parameters["@user_type"].Value = 0;
 
-
                System.Data.SqlClient.SqlDataReader bhread = scmd.ExecuteReader();
 
                /* 
@@ -237,7 +205,6 @@ namespace Bart
                     }
                
                 bhread.Close();
-                          
             }
            file.Close();
            sqlconn1.Close(); //connection stays open outside while processing
@@ -245,34 +212,25 @@ namespace Bart
            file.Close();
            Console.WriteLine("Connection Closed");
            Console.ReadLine();
-
         }
 
         /*************************************** MODIFIED CODE FROM ABOVE FOR WEB APP OPERATORS *****************************************/
-
-
-
         /*This finction: Finds members of the webappoperators group and send their username to getWAOPUserProperties function to get more details */
         public static void getWebAppOperatorsMembers()
         {
             Console.WriteLine("Reading WebAppOperators group Members");
-
             PrincipalContext ctx = new PrincipalContext(ContextType.Domain, "project.local");
             GroupPrincipal grp = GroupPrincipal.FindByIdentity(ctx, IdentityType.SamAccountName, "WebAppOperators");
-
             if (grp != null)
             {
-                //loop through members of the group
-                foreach (Principal p in grp.GetMembers())
+                foreach (Principal p in grp.GetMembers())//loop through members of the group
                 {
                     string uname = String.Format("{0}", p.SamAccountName);
                     Console.WriteLine(uname);
                     getWAOPUserProperties(uname); //pass each member username function that gets more information
                 }
-
                 grp.Dispose();
                 ctx.Dispose();
-
             }
             else
             {
@@ -280,18 +238,14 @@ namespace Bart
                 Console.ReadLine();
             }
         }
-
-
         /* This function receives username from getWebAppOperatorsMembers and reads more details
          * all details are concatenated into single line string and pased to savetofile function
          * 
          */
         public static void getWAOPUserProperties(string unamep)
         {
-
             PrincipalContext cty = new PrincipalContext(ContextType.Domain, "project.local");
             UserPrincipal usr = UserPrincipal.FindByIdentity(cty, unamep);
-
             string cn = usr.Name;
             string givenName = usr.GivenName;
             string sn = usr.Surname;
@@ -299,11 +253,9 @@ namespace Bart
             string mail = usr.EmailAddress;
             string telephoneNumber = usr.VoiceTelephoneNumber;
             //string physicalDeliveryOfficeName = ""; // requires DirectoryEntry object
-
             string fullUserInfo = cn + "," + givenName + "," + sn + "," + sAMAccountName + "," + mail + "," + telephoneNumber;
             Console.WriteLine(fullUserInfo);
             saveWAOPUsersToFile(fullUserInfo, cn);
-
         }
 
         /*This function receives full user info and username from getWAOPUserProperties
@@ -311,49 +263,36 @@ namespace Bart
          */
         public static void saveWAOPUsersToFile(string userInfo, string uname) //uname only used for display purposes
         {
-
             using (System.IO.StreamWriter file = new System.IO.StreamWriter("C:\\WebAppOperatorsUsers.txt", true))
             {
                 file.WriteLine(userInfo);
             }
-
-            //System.IO.File.WriteAllText(@"C:\userInfo.txt", userInfo);
             Console.WriteLine("User " + uname + " has been saved to file");
-
         }
-
         /* SQL reads file and inserts values to SQL users table. Check if they exisit and if not commits insert */
         public static void insertWAOPUsersToSQL()
         {
             string line;
             string[] lineArr = new string[6];
-
             //SQL Connection Create            
             System.Data.SqlClient.SqlConnection sqlconn1 = new System.Data.SqlClient.SqlConnection("Server=lk-dit-ad.project.local;database=helpdesk;Trusted_Connection=true");
             System.Data.SqlClient.SqlConnection sqlconn2 = new System.Data.SqlClient.SqlConnection("Server=lk-dit-ad.project.local;database=helpdesk;Trusted_Connection=true");
-
             string sqlQueryforCheck = "";
             string sqlQueryForInsert = "";
-
-            // Read the file and display it line by line.
-            System.IO.StreamReader file = new System.IO.StreamReader("C:\\WebAppOperatorsUsers.txt");
-
+          
+            System.IO.StreamReader file = new System.IO.StreamReader("C:\\WebAppOperatorsUsers.txt");// Read the file and display it line by line.
             try
             {
                 sqlconn1.Open();
                 sqlconn2.Open();
                 Console.WriteLine("Connected to SQL");
             }
-
             catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
             }
-
-            //read every single line of the file
-            while ((line = file.ReadLine()) != null)
+            while ((line = file.ReadLine()) != null)//read every single line of the file
             {
-
                 line = line.ToString();
                 Console.WriteLine("**** " + line);
                 lineArr = line.Split(','); //Split each line by coma
@@ -382,8 +321,6 @@ namespace Bart
                 sqlInsert.Parameters["@email"].Value = lineArr[4].ToString();
                 sqlInsert.Parameters["@phone"].Value = lineArr[5].ToString();
                 sqlInsert.Parameters["@user_type"].Value = 1;
-
-
                 System.Data.SqlClient.SqlDataReader bhread = scmd.ExecuteReader();
 
                 /* 
@@ -400,9 +337,7 @@ namespace Bart
                     sqlInsert.ExecuteNonQuery();
                     Console.WriteLine("Insert Success");
                 }
-
                 bhread.Close();
-
             }
             file.Close();
             sqlconn1.Close(); //connection stays open outside while processing
@@ -410,10 +345,7 @@ namespace Bart
             file.Close();
             Console.WriteLine("Connection Closed");
             Console.ReadLine();
-
         }
-
-
     }
 }
 
